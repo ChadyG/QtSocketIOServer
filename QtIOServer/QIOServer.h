@@ -112,6 +112,7 @@ public:
 	static const QString regExpResourceNameStr;
     static const QString regExpHostStr;
     static const QString regExpOriginStr;
+    static const QString regExpCmdParamStr;
 
 
     static const QString regExpKeyStr;

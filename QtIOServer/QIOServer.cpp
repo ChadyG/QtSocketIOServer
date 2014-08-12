@@ -9,6 +9,7 @@
 
 const QString QIOServer::regExpResourceNameStr( QLatin1String("^GET\\s(.*)\\sHTTP/1.1\r\n") );
 const QString QIOServer::regExpHostStr( QLatin1String("\r\nHost:\\s(.+(:\\d+)?)\r\n") );
+const QString QIOServer::regExpCmdParamStr( QLatin1String("EIO=(\\d+)&?") );
 
 const QString QIOServer::regExpKeyStr( QLatin1String("\r\nSec-WebSocket-Key:\\s(.{24})\r\n") );
 const QString QIOServer::regExpKey1Str( QLatin1String("\r\nSec-WebSocket-Key1:\\s(.+)\r\n") );
@@ -140,8 +141,10 @@ void QIOServer::dataReceived()
     QString sessionID;
     if (socketTemp.size() >= 3)
     {
-        commandStr = socketTemp[2];
-        paramStr = socketTemp[3];
+        paramStr = socketTemp[2];
+        regExp.setPattern(QIOServer::regExpCmdParamStr);
+        regExp.indexIn(paramStr);
+        commandStr = regExp.cap(1);
     }
     if (socketTemp.size() >= 5)
     {

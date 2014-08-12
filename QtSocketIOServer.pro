@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core network
+QT       += core network websockets
 
 QT       -= gui
 
@@ -17,9 +17,11 @@ TEMPLATE = app
 
 
 SOURCES += $$PWD/examples/main.cpp \
-    $$PWD/examples/ExHandler.cpp
+    $$PWD/examples/ExHandler.cpp \
+    examples/WSListener.cpp
 
-HEADERS += $$PWD/examples/ExHandler.h
+HEADERS += $$PWD/examples/ExHandler.h \
+    examples/WSListener.h
 
 include(QtIOServer/QtSocketIO.pri)
 include(SocketIOServer/SocketIOServer.pri)

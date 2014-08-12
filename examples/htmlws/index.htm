@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!-- saved from url=(0031)/proled -->
+<html manifest="pageCache.manifest"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <title>Web App</title>
+        <link rel="stylesheet" type="text/css" href="bootstrap-responsive.css">
+        <link rel="stylesheet" type="text/css" href="bootstrap.css">
+        
+        <script type="text/javascript" src="jquery-2.0.2.min.js"></script>
+        <script type="text/javascript" src="bootstrap.min.js"></script>
+        <script type="text/javascript" src="jquery.session.js"></script>
+        <script type="text/javascript" src="socket.io.js"></script>
+        <script type="text/javascript">
+function parseURL(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    return {
+        source: url,
+        host: a.hostname,
+        port: a.port
+    };
+}
+var myURL = parseURL(document.location.href);
+var connection = new WebSocket('ws://localhost:3000');
+
+// When the connection is open, send some data to the server
+connection.onopen = function () {
+  connection.send('Ping'); // Send the message 'Ping' to the server
+  console.log("opened");
+};
+
+// Log errors
+connection.onerror = function (error) {
+  console.log('WebSocket Error ' + error);
+};
+
+// Log messages from the server
+connection.onmessage = function (e) {
+  console.log('Server: ' + e.data);
+};
+
+        </script>
+      
+    </head>
+   <body id="body" style="">
+       
+        <div id="jsStuff">
+            <script type="text/javascript">
+            </script>
+        </div>
+        <div id="controlsStuff"></div>
+        <!---- Start Header - Div---->
+        <header>
+        </header>
+
+        <div class="clear"></div>
+        <div class="canvas" style="-moz-user-select: none;-webkit-user-select: none;" onselectstart="return false;">
+            
+            <div class="pageContainer">
+                <div class="span12 hasdropdown">
+                    <!-- <h1 id="h1"> ProLED <span class="proled-right-menu pull-right"> </span> </h1> -->
+                    <div class="proled-menu"></div>
+                </div>
+                <div class="maincon">
+                    <h1 class="inner"></h1>
+                   
+                </div>
+            </div>
+            <div class="right-panel" style="display: none; overflow: auto; height: 350px;">
+                
+            </div>
+            <div class="clear"></div>
+
+        </div>
+    <!--     Start - End _Side Div -->
+    <div class="clear">
+    </div>
+
+    
+
+</body></html>

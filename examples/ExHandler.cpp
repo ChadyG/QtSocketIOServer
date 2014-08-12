@@ -12,25 +12,25 @@ ExHandler::ExHandler()
 
 void ExHandler::messageReceived(QString message)
 {
-    //qDebug() << "eventReceived1: " << message;
+    qDebug() << "eventReceived1: " << message;
 
 }
 
 void ExHandler::messageReceived(QJsonValue  message)
 {
-    //qDebug() << "eventReceived2: " << message;
+    qDebug() << "eventReceived2: " << message;
 
 }
 
 void ExHandler::eventReceived(QString event)
 {
-    //qDebug() << "eventReceived3: " << event;
+    qDebug() << "eventReceived3: " << event;
 
 }
 
 void ExHandler::eventReceived(QString event, QString message)
 {
-    //qDebug() << "eventReceived4: " << event << " : " << message;
+    qDebug() << "eventReceived4: " << event << " : " << message;
     //TODO
     //GetOPCServerdata
     //GetInterLockdata

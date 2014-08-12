@@ -45,7 +45,7 @@ void SocketIOServer::processNewConnection()
 
 void SocketIOServer::processMessage( QString frame )
 {
-    //qDebug() << "SocketIOServer:processMessage: " <<  frame;
+    qDebug() << "SocketIOServer:processMessage: " <<  frame;
 
     //Do basic parsing of socket.io messages here
     QString eventName;

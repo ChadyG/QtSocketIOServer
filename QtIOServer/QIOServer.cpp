@@ -12,7 +12,7 @@ const QString QIOServer::regExpHostStr( QLatin1String("\r\nHost:\\s(.+(:\\d+)?)\
 
 const QString QIOServer::regExpCmdParamStr( QLatin1String("EIO=(\\d+)&?") );
 const QString QIOServer::regExpTransportParamStr( QLatin1String("transport=(\\w+)&?") );
-const QString QIOServer::regExpSIDParamStr( QLatin1String("sid=(\\d+\\-\\d)&?") );
+const QString QIOServer::regExpSIDParamStr( QLatin1String("sid=(\\w+)&?") );
 const QString QIOServer::regExpB64ParamStr( QLatin1String("b64=(\\d+)&?") );
 
 const QString QIOServer::regExpKeyStr( QLatin1String("\r\nSec-WebSocket-Key:\\s(.{24})\r\n") );
@@ -293,19 +293,38 @@ void QIOServer::processEngineIO(QTcpSocket *tcpSocket, QString request, QString 
     {
         newEngineIOConnection(tcpSocket, request, paramStr);
     }
-    // find existing connection, respond with 2:40 (message connect) or pong
-    foreach (IOConnection conn, _connections)
+
+    // Origin
+    regExp.setMinimal( true );
+    regExp.setPattern( QIOServer::regExpOriginStr );
+    if ( regExp.indexIn(request) == -1 )
     {
-        if (conn.sID == sessionID)
+        regExp.setPattern( QIOServer::regExpOrigin2Str );
+        regExp.indexIn(request);
+    }
+    QString origin = regExp.cap(1);
+    // find existing connection, respond with 2:40 (message connect) or pong
+    for (int i=0; i < _connections.count(); i++)
+    {
+        if (_connections[i].sID == sessionID)
         {
-            if (conn.connected == false)
+            if (_connections[i].connected == false)
             {
-                conn.socket->write("2:40");
+
+                tcpSocket->write(composeEngineIOConect(
+                                     _connections[i].sID,
+                                     origin));
+                tcpSocket->close();
+                _connections[i].connected = true;
             }
             else
             {
+                qDebug() << "QIOServer: pending pong/message";
                 // this is a long poll request, we should return with any pending messages or a pong
-                conn.socket->write("1:3");
+                //tcpSocket->write(composeEngineIOPong(
+                //                     _connections[i].sID,
+                //                     origin));
+                //tcpSocket->close();
             }
             break;
         }
@@ -319,7 +338,7 @@ void QIOServer::newEngineIOConnection(QTcpSocket *tcpSocket, QString request, QS
     conn.socket = tcpSocket;
     conn.connected = false;
     // Generate unique sid
-    conn.sID = QCryptographicHash::hash(QDateTime::currentDateTime().toString().toLocal8Bit() + paramStr.toLocal8Bit(), QCryptographicHash::Md5).toHex().constData();
+    conn.sID = QCryptographicHash::hash(QDateTime::currentDateTime().toString().toLocal8Bit() + paramStr.toLocal8Bit(), QCryptographicHash::Md5).toHex().left(20).constData();
 
     regExp.setPattern(regExpTransportParamStr);
     regExp.indexIn(paramStr);
@@ -364,7 +383,8 @@ void QIOServer::newEngineIOConnection(QTcpSocket *tcpSocket, QString request, QS
     // respond with accept string, then return
     tcpSocket->write(composeEngineIOAccept(
                          conn.sID,
-                         origin).toLocal8Bit().constData());
+                         origin));
+    tcpSocket->close();
 }
 
 void QIOServer::processSocketHandshake(QTcpSocket *tcpSocket, QString request)
@@ -728,17 +748,19 @@ QByteArray QIOServer::serializeInt( quint32 number, quint8 nbBytes )
 	return ba;
 }
 
-QString QIOServer::composeEngineIOAccept( QString sessionID, QString origin )
+QByteArray QIOServer::composeEngineIOAccept( QString sessionID, QString origin )
 {
-    QString response;
-    QString message = QString("109:0{\"sid\":\"%1\",\"upgrades\":[\"websocket\"],\"pingInterval\":25000,\"pingTimeout\":60000}")
-            .arg(sessionID);
+    QByteArray response;
+    static const char EngineIOConnectPrefix[] = {0,9,9,"\xff"};
+    QByteArray message = QByteArray::fromRawData(EngineIOConnectPrefix, sizeof(EngineIOConnectPrefix)-1)
+            + QString("0{\"sid\":\"%1\",\"upgrades\":[\"websocket\"],\"pingInterval\":25000,\"pingTimeout\":60000}")
+            .arg(sessionID).toLocal8Bit();
 
     response.append( QLatin1String("HTTP/1.1 200 OK\r\n") );
-    //response.append( QLatin1String("Access-Control-Allow-Origin: *\r\n") );
+    response.append( QLatin1String("Server: QtSocketIOServer/1.0\r\n") );
     response.append( QLatin1String("Access-Control-Allow-Origin: ") + origin + QLatin1String("\r\n") );
     response.append( QLatin1String("Access-Control-Allow-Credentials: true\r\n") );
-    response.append( QLatin1String("Content-Type: text/plain\r\n") );
+    response.append( QLatin1String("Content-Type: application/octet-stream\r\n") );
     response.append( QLatin1String("Content-Length: ")  + QString::number(message.size()) + QLatin1String("\r\n") );
     response.append( QLatin1String("Connection: keep-alive\r\n") );
     response.append( QLatin1String("Set-Cookie: io=")  + sessionID + QLatin1String("\r\n") );
@@ -748,13 +770,55 @@ QString QIOServer::composeEngineIOAccept( QString sessionID, QString origin )
     return response;
 }
 
-QString QIOServer::composeEngineIOUpgrade( QString protocol )
+QByteArray QIOServer::composeEngineIOConect( QString sessionID, QString origin )
 {
-    QString response;
+    QByteArray response;
+    static const char EngineIOConnectPrefix[] = {0,2,"\xff"};
+    QByteArray message = QByteArray::fromRawData(EngineIOConnectPrefix, sizeof(EngineIOConnectPrefix)-1)
+            + QString("40").toLocal8Bit();
+
+    response.append( QLatin1String("HTTP/1.1 200 OK\r\n") );
+    response.append( QLatin1String("Server: QtSocketIOServer/1.0\r\n") );
+    response.append( QLatin1String("Access-Control-Allow-Origin: ") + origin + QLatin1String("\r\n") );
+    response.append( QLatin1String("Access-Control-Allow-Credentials: true\r\n") );
+    response.append( QLatin1String("Content-Type: application/octet-stream\r\n") );
+    response.append( QLatin1String("Content-Length: ")  + QString::number(message.size()) + QLatin1String("\r\n") );
+    response.append( QLatin1String("Connection: keep-alive\r\n") );
+    response.append( QLatin1String("Set-Cookie: io=")  + sessionID + QLatin1String("\r\n") );
+    response.append( QLatin1String("\r\n") );
+    response.append( message );
+
+    return response;
+}
+
+QByteArray QIOServer::composeEngineIOPong( QString sessionID, QString origin )
+{
+    QByteArray response;
+    static const char EngineIOConnectPrefix[] = {0,1,"\xff"};
+    QByteArray message = QByteArray::fromRawData(EngineIOConnectPrefix, sizeof(EngineIOConnectPrefix)-1)
+            + QString("3").toLocal8Bit();
+
+    response.append( QLatin1String("HTTP/1.1 200 OK\r\n") );
+    response.append( QLatin1String("Server: QtSocketIOServer/1.0\r\n") );
+    response.append( QLatin1String("Access-Control-Allow-Origin: ") + origin + QLatin1String("\r\n") );
+    response.append( QLatin1String("Access-Control-Allow-Credentials: true\r\n") );
+    response.append( QLatin1String("Content-Type: application/octet-stream\r\n") );
+    response.append( QLatin1String("Content-Length: ")  + QString::number(message.size()) + QLatin1String("\r\n") );
+    response.append( QLatin1String("Connection: keep-alive\r\n") );
+    response.append( QLatin1String("Set-Cookie: io=")  + sessionID + QLatin1String("\r\n") );
+    response.append( QLatin1String("\r\n") );
+    response.append( message );
+
+    return response;
+}
+
+QByteArray QIOServer::composeEngineIOUpgrade( QString protocol )
+{
+    QByteArray response;
 
     response.append( QLatin1String("HTTP/1.1 101 Switching Protocols\r\n") );
     response.append( QLatin1String("Access-Control-Allow-Origin: *\r\n") );
-    response.append( QLatin1String("Content-Type: text/plain\r\n") );
+    response.append( QLatin1String("Content-Type: application/octet-stream\r\n") );
     response.append( QLatin1String("Connection: upgrade\r\n") );
     response.append( QLatin1String("Upgrade: ") + protocol + QLatin1String("\r\n") );
     response.append( QLatin1String("\r\n") );

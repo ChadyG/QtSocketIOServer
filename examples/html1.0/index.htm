@@ -36,9 +36,9 @@ socket.on("error", function(payload){ console.log("SocketIO Error");reconnect()}
 socket.on("connect_failed", function(payload){ console.log("SocketIO Connect Failed");reconnect()});
 socket.on("reconnect_failed", function(payload){ console.log("SocketIO Connect Failed");reconnect()});
 function reconnect(){
-    if (!socket.socket.connected){
+    if (!socket.connected){
         var t = setTimeout( function() {
-            socket.socket.reconnect()
+            socket.reconnect()
             console.log("SocketIO reconnect");
         },1000);
     }

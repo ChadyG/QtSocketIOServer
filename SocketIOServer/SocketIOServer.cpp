@@ -1,4 +1,5 @@
 #include <QDebug>
+#include "QtJson/json.h"
 
 #include "SocketIOServer.h"
 
@@ -49,8 +50,8 @@ void SocketIOServer::processMessage( QString frame )
 
     //Do basic parsing of socket.io messages here
     QString eventName;
-    QJsonObject json;
-    QJsonArray args;
+    QVariantMap json;
+    QVariantList args;
     QStringList socketargs = frame.split(":");
     EIOsocketMessages mtype = (EIOsocketMessages)socketargs[0].toInt();
     QString messageID;
@@ -86,7 +87,7 @@ void SocketIOServer::processMessage( QString frame )
         break;
     case IO_MJSON:
         // JSON object {"name" : "EVENT", "args" : [OBJ]}
-        json = QJsonDocument::fromJson(messageData.toUtf8()).object();
+        json = QtJson::Json::parse(messageData.toUtf8()).toMap();
         eventName = json["name"].toString();
         //messageData from args
 
@@ -97,14 +98,14 @@ void SocketIOServer::processMessage( QString frame )
         break;
     case IO_MEvent:
         // JSON object {"name" : "EVENT", "args" : [STRING]}
-        json = QJsonDocument::fromJson(messageData.toUtf8()).object();
+        json = QtJson::Json::parse(messageData.toUtf8()).toMap();
         eventName = json["name"].toString();
         if (json.contains("args"))
         {
-            args = json["args"].toArray();
+            args = json["args"].toList();
             for (int i = 0; i < args.size(); i++)
             {
-                if (args[i].type() == QJsonValue::Object)
+                if (args[i].type() == QVariant::Map)
                 {
                     //qDebug() << "message is JSON";
                     //messageData = QJsonDocument::fromVariant(args[0]).toJson();
@@ -113,7 +114,7 @@ void SocketIOServer::processMessage( QString frame )
                         handler->eventReceived(eventName, args[i]);
                     }
                 }
-                else if (args[i].type() == QJsonValue::String)
+                else if (args[i].type() == QVariant::String)
                 {
                     //qDebug() << "message is string";
                     //messageData = args[0].toString();foreach (SocketHandler* handler, _handlers)

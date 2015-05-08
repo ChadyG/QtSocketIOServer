@@ -23,3 +23,4 @@ HEADERS += $$PWD/examples/ExHandler.h
 
 include(QtIOServer/QtSocketIO.pri)
 include(SocketIOServer/SocketIOServer.pri)
+include(QtJson/QtJson.pri)

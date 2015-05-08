@@ -23,10 +23,10 @@ public:
     ~SocketHandler();
 
     virtual void messageReceived(QString message) = 0;
-    virtual void messageReceived(QJsonValue message) = 0;
+    virtual void messageReceived(QVariant message) = 0;
     virtual void eventReceived(QString event) = 0;
     virtual void eventReceived(QString event, QString message) = 0;
-    virtual void eventReceived(QString event, QJsonValue  message) = 0;
+    virtual void eventReceived(QString event, QVariant  message) = 0;
 signals:
     void sendMessage(QString message);
 

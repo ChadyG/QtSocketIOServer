@@ -11,10 +11,10 @@ public:
     ExHandler();
 
     virtual void messageReceived(QString message);
-    virtual void messageReceived(QJsonValue  message);
+    virtual void messageReceived(QVariant  message);
     virtual void eventReceived(QString event);
     virtual void eventReceived(QString event, QString message);
-    virtual void eventReceived(QString event, QJsonValue  message);
+    virtual void eventReceived(QString event, QVariant  message);
 
 public slots:
     void ClientConnectedHandler();

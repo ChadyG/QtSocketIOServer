@@ -16,7 +16,7 @@ void ExHandler::messageReceived(QString message)
 
 }
 
-void ExHandler::messageReceived(QJsonValue  message)
+void ExHandler::messageReceived(QVariant  message)
 {
     qDebug() << "eventReceived2: " << message;
 
@@ -56,7 +56,7 @@ void ExHandler::eventReceived(QString event, QString message)
     }
 }
 
-void ExHandler::eventReceived(QString event, QJsonValue message)
+void ExHandler::eventReceived(QString event, QVariant message)
 {
     if (event != "isServerConnected")
         qDebug() << "SocketIO::eventReceived: " << event << " : " << message;
@@ -68,7 +68,7 @@ void ExHandler::eventReceived(QString event, QJsonValue message)
     QVariant value;
     QVariant vreturn;
 
-    QJsonValue jvalue;
+    QVariant jvalue;
 
     if (event == "getValue")
     {
@@ -81,7 +81,7 @@ void ExHandler::eventReceived(QString event, QJsonValue message)
 
     if (event == "isServerConnected")
     {
-        value = message.toObject()["value"].toString();
+        value = message.toMap()["value"].toString();
         //sendMessage(SocketMessageHelper::ValueUpdate("isServerConnected", true));
     }
 }

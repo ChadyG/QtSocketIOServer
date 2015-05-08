@@ -30,7 +30,7 @@ public:
     void Start();
 
 public slots:
-	void processNewConnection();
+    void processNewConnection();
     void processMessage( QString message );
     void socketDisconnected();
     void sendMessage( QString message );

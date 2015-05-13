@@ -1,7 +1,5 @@
 #include "SocketMessageHelper.h"
 
-using namespace MarkAndy::IntelligentPlatform::Web;
-
 QString SocketMessageHelper::Event(QString eventName)
 {
     return QString("5:::{\"name\":\"" + eventName + "\"}");

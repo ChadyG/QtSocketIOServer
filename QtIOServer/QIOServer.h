@@ -27,6 +27,24 @@ enum EIOsocketMessages
     IO_MNoop = 8
 };
 
+enum EIOTransports
+{
+    IO_TUnknown = -1,
+    IO_TPolling = 0,
+    IO_TFlashSocket = 1,
+    IO_TWebSocket = 2
+};
+
+struct IOConnection
+{
+    QTcpSocket* socket;
+    EIOTransports transport;
+    QString sID;
+    bool b64;
+    bool connected;
+    //last ping
+};
+
 struct ServerPri;
 class QIOServer : public QObject
 {
@@ -66,6 +84,8 @@ protected:
     //void addPendingConnection( QWsSocket * socket );
 
     void processSocketHandshake(QTcpSocket *tcpSocket, QString request);
+    void processEngineIO(QTcpSocket *tcpSocket, QString request, QString resourceName);
+    void newEngineIOConnection(QTcpSocket *tcpSocket, QString request, QString paramStr);
 
 public slots:
     // public functions
@@ -90,6 +110,7 @@ private:
     QTcpServer * _tcpServer;
     QQueue<QWsSocket*> pendingConnections;
 	QMap<const QTcpSocket*, QStringList> headerBuffer;
+    QList<IOConnection> _connections;
     QList<QWsSocket*> _clients;
     bool _connected;
     QTimer* _timer;
@@ -101,7 +122,11 @@ public:
     static QString computeAcceptV0( QString key1, QString key2, QString thirdPart );
     static QString computeAcceptV4( QString key );
     static QString computeSocketIOSession( QString key );
-	static QString generateNonce();
+    static QString generateNonce();
+    static QByteArray composeEngineIOAccept( QString sessionID, QString origin);
+    static QByteArray composeEngineIOConect( QString sessionID, QString origin);
+    static QByteArray composeEngineIOPong( QString sessionID, QString origin);
+    static QByteArray composeEngineIOUpgrade( QString protocol);
     static QString composeOpeningHandshakeResponseV0( QString accept, QString origin, QString hostAddress, QString hostPort, QString resourceName, QString protocol = "" );
     static QString composeOpeningHandshakeResponseV4( QString accept, QString nonce, QString protocol = "", QString extensions = "" );
     static QString composeOpeningHandshakeResponseV6( QString accept, QString protocol = "", QString extensions = "" );
@@ -112,8 +137,11 @@ public:
 	static const QString regExpResourceNameStr;
     static const QString regExpHostStr;
     static const QString regExpOriginStr;
-    static const QString regExpCmdParamStr;
 
+    static const QString regExpCmdParamStr;
+    static const QString regExpTransportParamStr;
+    static const QString regExpSIDParamStr;
+    static const QString regExpB64ParamStr;
 
     static const QString regExpKeyStr;
     static const QString regExpKey1Str;

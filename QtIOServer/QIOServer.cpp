@@ -43,7 +43,7 @@ void QIOServer::listen(quint16 port, const QHostAddress & address)
 {
     if (_tcpServer == 0)
     {
-        _tcpServer = new QTcpServer(this);
+        _tcpServer = new QWebSocketServer("SocketIO", QWebSocketServer::NonSecureMode, this);
         connect( _tcpServer, SIGNAL(newConnection()), this, SLOT(newTcpConnection()) );
         qsrand( QDateTime::currentMSecsSinceEpoch() );
     }
@@ -73,17 +73,17 @@ void QIOServer::close()
 
 void QIOServer::sendMessage(const QString &message)
 {
-    QWsSocket * client;
+    QWebSocket * client;
     foreach ( client, _clients )
     {
         //QMetaObject::invokeMethod(client, "write", Q_ARG(const QString &, message));
-        client->write( message );
+        client->sendTextMessage( message );
     }
 }
 
 void QIOServer::newTcpConnection()
 {
-    QTcpSocket * tcpSocket = _tcpServer->nextPendingConnection();
+    QWebSocket * tcpSocket = _tcpServer->nextPendingConnection();
 	connect( tcpSocket, SIGNAL(readyRead()), this, SLOT(dataReceived()) );
 	headerBuffer.insert( tcpSocket, QStringList() );
 }
@@ -100,7 +100,7 @@ void QIOServer::closeTcpConnection()
 void QIOServer::dataReceived()
 {
     //qDebug() << "QIOServer:Data Received";
-	QTcpSocket * tcpSocket = qobject_cast<QTcpSocket*>( sender() );
+    QWebSocket * tcpSocket = qobject_cast<QWebSocket*>( sender() );
 	if (tcpSocket == 0)
 		return;
 
@@ -108,15 +108,15 @@ void QIOServer::dataReceived()
 
 	const QLatin1String emptyLine("\r\n");
 
-	while ( tcpSocket->canReadLine() )
+    //while ( tcpSocket->canReadLine() )
 	{
-		QString line = tcpSocket->readLine();
+        QString line = "";//tcpSocket->readLine();
         qDebug() << "QIOServer:Header line: " << line;
 
 		if (line == emptyLine)
 		{
 			allHeadersFetched = true;
-			break;
+            return;//break;
 		}
 
 		headerBuffer[ tcpSocket ].append(line);
@@ -200,8 +200,8 @@ void QIOServer::dataReceived()
 	{
 		// Send bad request response
 		QString response = QIOServer::composeBadRequestResponse( QList<EWebsocketVersion>() << WS_V6 << WS_V7 << WS_V8 << WS_V13 );
-		tcpSocket->write( response.toUtf8() );
-		tcpSocket->flush();
+        //tcpSocket->write( response.toUtf8() );
+        //tcpSocket->flush();
 		return;
 	}
 	
@@ -250,7 +250,7 @@ void QIOServer::dataReceived()
 
 	// Send opening handshake response
     //if ( version == WS_V0 )
-        tcpSocket->write( response.toLatin1() );
+        //tcpSocket->write( response.toLatin1() );
     //else
     //	tcpSocket->write( response.toUtf8() );
     tcpSocket->flush();
@@ -269,7 +269,7 @@ void QIOServer::dataReceived()
     //emit newConnection();
 }
 
-void QIOServer::processEngineIO(QTcpSocket *tcpSocket, QString request, QString resourceName)
+void QIOServer::processEngineIO(QWebSocket *tcpSocket, QString request, QString resourceName)
 {
     QRegExp regExp;
     QStringList socketTemp = resourceName.split('/');
@@ -335,7 +335,7 @@ void QIOServer::processEngineIO(QTcpSocket *tcpSocket, QString request, QString 
     }
 }
 
-void QIOServer::newEngineIOConnection(QTcpSocket *tcpSocket, QString request, QString paramStr)
+void QIOServer::newEngineIOConnection(QWebSocket *tcpSocket, QString request, QString paramStr)
 {
     QRegExp regExp;
     IOConnection conn;
@@ -391,7 +391,7 @@ void QIOServer::newEngineIOConnection(QTcpSocket *tcpSocket, QString request, QS
     tcpSocket->close();
 }
 
-void QIOServer::processSocketHandshake(QTcpSocket *tcpSocket, QString request)
+void QIOServer::processSocketHandshake(QWebSocket *tcpSocket, QString request)
 {
     QRegExp regExp;
     regExp.setMinimal( true );
@@ -550,7 +550,7 @@ void QIOServer::processSocketHandshake(QTcpSocket *tcpSocket, QString request)
 
 void QIOServer::frameReceivedHandler( QString frame )
 {
-    QWsSocket * socket = qobject_cast<QWsSocket*>( sender() );
+    QWebSocket * socket = qobject_cast<QWebSocket*>( sender() );
     if (socket == 0)
         return;
 
@@ -559,7 +559,7 @@ void QIOServer::frameReceivedHandler( QString frame )
 
 void QIOServer::socketDisconnectedHandler()
 {
-    QWsSocket * socket = qobject_cast<QWsSocket*>( sender() );
+    QWebSocket * socket = qobject_cast<QWebSocket*>( sender() );
     if (socket == 0)
         return;
 
@@ -573,7 +573,7 @@ void QIOServer::socketDisconnectedHandler()
 void QIOServer::sendHeartbeats()
 {
     //qDebug() << "IOServer:sendHeartbeats ";
-    QWsSocket * client;
+    QWebSocket * client;
     foreach ( client, _clients )
     {
         //QMetaObject::invokeMethod(client, "write", Q_ARG(const QString &, QString("2::")));

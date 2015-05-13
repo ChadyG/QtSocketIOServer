@@ -64,4 +64,12 @@ void WSListener::textFrameRecievedHandler(const QString& frame, bool isLastFrame
 void WSListener::textMessageRecievedHandler(const QString& message)
 {
     qDebug()<< "ws recieved message: " << message;
+
+    if (message == "test:event")
+    {
+        foreach (QWebSocket* ws, _sockets)
+        {
+            ws->sendTextMessage("test:response");
+        }
+    }
 }

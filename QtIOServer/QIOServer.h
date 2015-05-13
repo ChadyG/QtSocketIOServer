@@ -1,8 +1,10 @@
 #ifndef QIOSERVER_H
 #define QIOSERVER_H
 
-#include <QTcpServer>
-#include <QTcpSocket>
+#include <QWebSocketServer>
+#include <QWebSocket>
+//#include <QTcpServer>
+//#include <QTcpSocket>
 #include <QThread>
 #include <QTimer>
 #include <QNetworkProxy>
@@ -83,9 +85,9 @@ protected:
 	// protected functions
     //void addPendingConnection( QWsSocket * socket );
 
-    void processSocketHandshake(QTcpSocket *tcpSocket, QString request);
-    void processEngineIO(QTcpSocket *tcpSocket, QString request, QString resourceName);
-    void newEngineIOConnection(QTcpSocket *tcpSocket, QString request, QString paramStr);
+    void processSocketHandshake(QWebSocket *tcpSocket, QString request);
+    void processEngineIO(QWebSocket *tcpSocket, QString request, QString resourceName);
+    void newEngineIOConnection(QWebSocket *tcpSocket, QString request, QString paramStr);
 
 public slots:
     // public functions
@@ -107,11 +109,11 @@ private slots:
 
 private:
     // private attributes
-    QTcpServer * _tcpServer;
-    QQueue<QWsSocket*> pendingConnections;
-	QMap<const QTcpSocket*, QStringList> headerBuffer;
+    QWebSocketServer * _tcpServer;
+    QQueue<QWebSocket*> pendingConnections;
+    QMap<const QWebSocket*, QStringList> headerBuffer;
     QList<IOConnection> _connections;
-    QList<QWsSocket*> _clients;
+    QList<QWebSocket*> _clients;
     bool _connected;
     QTimer* _timer;
     QThread _backgroundThread;

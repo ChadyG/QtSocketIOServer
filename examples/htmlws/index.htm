@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <!-- saved from url=(0031)/proled -->
-<html manifest="pageCache.manifest"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html manifest="pageCache.manifest">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
-        <title>Web App</title>
-        <link rel="stylesheet" type="text/css" href="bootstrap-responsive.css">
+        <title>QSocketIOServer Test Page</title>
         <link rel="stylesheet" type="text/css" href="bootstrap.css">
         
         <script type="text/javascript" src="jquery-2.0.2.min.js"></script>
         <script type="text/javascript" src="bootstrap.min.js"></script>
         <script type="text/javascript" src="jquery.session.js"></script>
+        <script type="text/javascript" src="engine.io.js"></script>
         <script type="text/javascript" src="socket.io.js"></script>
         <script type="text/javascript">
 function parseURL(url) {
@@ -24,61 +26,54 @@ function parseURL(url) {
     };
 }
 var myURL = parseURL(document.location.href);
-var connection = new WebSocket('ws://localhost:3000');
+var connection = new WebSocket('wss://localhost:3000');
 
 // When the connection is open, send some data to the server
 connection.onopen = function () {
-  connection.send('Ping'); // Send the message 'Ping' to the server
-  console.log("opened");
+    connection.send('Ping'); // Send the message 'Ping' to the server
+    console.log("opened");
+    $('#status-alert').removeClass().addClass('alert alert-success').text("Opened");
 };
 
 // Log errors
 connection.onerror = function (error) {
-  console.log('WebSocket Error ' + error);
+    console.log('WebSocket Error ' + error);
+    $('#console').append('Error: ' + JSON.stringify(error) + '\n');
+    $('#status-alert').removeClass().addClass('alert alert-danger').text("Error");
 };
 
 // Log messages from the server
 connection.onmessage = function (e) {
-  console.log('Server: ' + e.data);
+    console.log('Server: ' + e.data);
+    $('#console').append('Server: ' + e.data + '\n');
 };
+
+$(document).ready(function() {
+    $('#button-test').on('click', function(event) {
+        console.log('sending test:event');
+        $('#console').append('sending test:event \n');
+        connection.send('test:event');
+    });
+});
 
         </script>
       
     </head>
-   <body id="body" style="">
-       
-        <div id="jsStuff">
-            <script type="text/javascript">
-            </script>
-        </div>
-        <div id="controlsStuff"></div>
-        <!---- Start Header - Div---->
-        <header>
-        </header>
+    <body>
+        <div class="container">
 
-        <div class="clear"></div>
-        <div class="canvas" style="-moz-user-select: none;-webkit-user-select: none;" onselectstart="return false;">
-            
-            <div class="pageContainer">
-                <div class="span12 hasdropdown">
-                    <!-- <h1 id="h1"> ProLED <span class="proled-right-menu pull-right"> </span> </h1> -->
-                    <div class="proled-menu"></div>
-                </div>
-                <div class="maincon">
-                    <h1 class="inner"></h1>
-                   
-                </div>
+            <div class="col-12">
+                <div id="status-alert" class="alert alert-danger">Not Connected</div>
             </div>
-            <div class="right-panel" style="display: none; overflow: auto; height: 350px;">
-                
+
+            <div class="col-12">
+                <button id="button-test" class="btn btn-default">Test</button>
             </div>
-            <div class="clear"></div>
+
+            <div class="col-12">
+                <pre id="console" class="well well-lg"></pre>
+            </div>
 
         </div>
-    <!--     Start - End _Side Div -->
-    <div class="clear">
-    </div>
-
-    
-
-</body></html>
+    </body>
+</html>

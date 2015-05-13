@@ -31,28 +31,12 @@ void ExHandler::eventReceived(QString event)
 void ExHandler::eventReceived(QString event, QString message)
 {
     qDebug() << "eventReceived4: " << event << " : " << message;
-    //TODO
-    //GetOPCServerdata
-    //GetInterLockdata
-    //GetPressConfigdata
-    //SaveProLEDConfig
-    //"SaveProLEDConfig"  :  QJsonValue(object, QJsonObject({"data": {"configuration": {"commMethod": "serial","pressCommMethod": "usb"},"lampPosition": [{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"}],"lampSerialNumbers": [{"serialNumber": "1231"},{"serialNumber": "1232"},{"serialNumber": "1233"},{"serialNumber": "1234"},{"serialNumber": "1235"},{"serialNumber": "1236"},{"serialNumber": "1237"}],"stationNumbers": [{"stationNumber": "1"},{"stationNumber": "2"},{"stationNumber": "3"},{"stationNumber": "4"},{"stationNumber": "5"},{"stationNumber": "6"},{"stationNumber": "7"}]},"id": "proLEDConfig"}) )
 
-    if (event == "testState")
+    if (event == "test:event")
     {
         qDebug() << "testState" << message;
 
-//        if (message == "Initialize")
-//            _state = Enumerations::Initialize;
-//        if (message == "Update")
-//            _state = Enumerations::ApplyUpdates;
-//        if (message == "Shutdown")
-//            _state = Enumerations::Shutdown;
-//        if (message == "Run")
-//            _state = Enumerations::Run;
-
-//        _cacheClient->SetValue(DataTags::ProLEDMaster::State, (int)_state, "");
-//        sendMessage(SocketMessageHelper::ValueUpdate("proLEDMaster:state", _state));
+        sendMessage(SocketMessageHelper::Event("test:reply", "a value"));
     }
 }
 

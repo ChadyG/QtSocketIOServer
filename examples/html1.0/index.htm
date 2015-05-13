@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <!-- saved from url=(0031)/proled -->
-<html manifest="pageCache.manifest"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html manifest="pageCache.manifest">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
-        <title>Web App</title>
-        <link rel="stylesheet" type="text/css" href="bootstrap-responsive.css">
+        <title>QSocketIOServer Test Page</title>
         <link rel="stylesheet" type="text/css" href="bootstrap.css">
         
         <script type="text/javascript" src="jquery-2.0.2.min.js"></script>
@@ -15,6 +16,7 @@
         <script type="text/javascript" src="engine.io.js"></script>
         <script type="text/javascript" src="socket.io.js"></script>
         <script type="text/javascript">
+
 function parseURL(url) {
     var a = document.createElement('a');
     a.href = url;
@@ -30,56 +32,56 @@ var socket = io.connect('http://localhost:3000', {
     'max reconnection attempts': 1000,
     'force new connection': true
 })
-socket.on('connect', function() { console.log("socketIO connected");reconnect()})
-socket.on('disconnect', function() { console.log("socketIO disconnected");reconnect()})
-socket.on("error", function(payload){ console.log("SocketIO Error");reconnect()});
-socket.on("connect_failed", function(payload){ console.log("SocketIO Connect Failed");reconnect()});
-socket.on("reconnect_failed", function(payload){ console.log("SocketIO Connect Failed");reconnect()});
-function reconnect(){
-    if (!socket.connected){
-        var t = setTimeout( function() {
-            socket.reconnect()
-            console.log("SocketIO reconnect");
-        },1000);
-    }
-}
+socket.on('connect', function() { 
+    console.log("socketIO connected");
+    $('#status-alert').removeClass().addClass('alert alert-success').text("Connected");
+})
+socket.on('disconnect', function() { 
+    console.log("socketIO disconnected");
+    $('#status-alert').removeClass().addClass('alert alert-danger').text("Disconnected");
+})
+socket.on("error", function(payload) { 
+    console.log("SocketIO Error");
+    $('#status-alert').removeClass().addClass('alert alert-danger').text("Error");
+});
+socket.on("connect_failed", function(payload) { 
+    console.log("SocketIO Connect Failed");
+    $('#status-alert').removeClass().addClass('alert alert-danger').text("Connect Failed");
+});
+socket.on("reconnect_failed", function(payload) { 
+    console.log("SocketIO Connect Failed");
+    $('#status-alert').removeClass().addClass('alert alert-danger').text("Reconnect Failed");
+});
+
+socket.on("test:reply", function(payload) {
+    $('#console').append(JSON.stringify(payload));
+});
+
+$(document).ready(function() {
+    $('#button-test').on('click', function(event) {
+        console.log('sending test:event');
+        $('#console').append('sending test:event \n');
+        socket.emit('test:event');
+    });
+});
         </script>
       
     </head>
-   <body id="body" style="">
-       
-        <div id="jsStuff">
-            <script type="text/javascript">
-            </script>
-        </div>
-        <div id="controlsStuff"></div>
-        <!---- Start Header - Div---->
-        <header>
-        </header>
+    <body>
+        <div class="container">
 
-        <div class="clear"></div>
-        <div class="canvas" style="-moz-user-select: none;-webkit-user-select: none;" onselectstart="return false;">
-            
-            <div class="pageContainer">
-                <div class="span12 hasdropdown">
-                    <!-- <h1 id="h1"> ProLED <span class="proled-right-menu pull-right"> </span> </h1> -->
-                    <div class="proled-menu"></div>
-                </div>
-                <div class="maincon">
-                    <h1 class="inner"></h1>
-                   
-                </div>
+            <div class="col-12">
+                <div id="status-alert" class="alert alert-danger">Not Connected</div>
             </div>
-            <div class="right-panel" style="display: none; overflow: auto; height: 350px;">
-                
+
+            <div class="col-12">
+                <button id="button-test" class="btn btn-default">Test</button>
             </div>
-            <div class="clear"></div>
+
+            <div class="col-12">
+                <pre id="console" class="well well-lg"></pre>
+            </div>
 
         </div>
-    <!--     Start - End _Side Div -->
-    <div class="clear">
-    </div>
-
-    
-
-</body></html>
+    </body>
+</html>

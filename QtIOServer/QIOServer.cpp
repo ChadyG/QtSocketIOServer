@@ -111,7 +111,7 @@ void QIOServer::dataReceived()
 	while ( tcpSocket->canReadLine() )
 	{
 		QString line = tcpSocket->readLine();
-        //qDebug() << "QIOServer:Header line: " << line;
+        qDebug() << "QIOServer:Header line: " << line;
 
 		if (line == emptyLine)
 		{
@@ -136,6 +136,10 @@ void QIOServer::dataReceived()
     regExp.setPattern( QIOServer::regExpResourceNameStr );
     regExp.indexIn(request);
     QString resourceName = regExp.cap(1);
+
+    //TODO: OPTIONS request
+    if (resourceName.isEmpty())
+        return;
 
 	// Extract mandatory datas
     // Version

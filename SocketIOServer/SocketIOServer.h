@@ -27,19 +27,23 @@ public:
     ~SocketIOServer();
 
     void registerMessage( SocketHandler* handler);
-    void Start();
 
 public slots:
-    void processNewConnection();
-    void processMessage( QString message );
-    void socketDisconnected();
-    void sendMessage( QString message );
+    void start(bool ssl = false);
+    void stop();
+
+    void processNewConnection(QString socketUuid);
+    void processMessage(QString socketUuid, QString message );
+    void socketDisconnected(QString socketUuid);
+    void sendMessage(QString socketUuid, QString message );
+    void sendMessage(QString message );
     //void sendHeartbeats();
 
 signals:
-    void clientConnectedEvent();
+    void clientConnectedEvent(QString);
 
 private:
+    quint32 _port;
     QTimer* _timer;
     QIOServer* _server;
     QList<QWsSocket*> _clients;

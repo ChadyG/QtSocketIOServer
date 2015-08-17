@@ -22,16 +22,17 @@ public:
     SocketHandler();
     ~SocketHandler();
 
-    virtual void messageReceived(QString message) = 0;
-    virtual void messageReceived(QVariant message) = 0;
-    virtual void eventReceived(QString event) = 0;
-    virtual void eventReceived(QString event, QString message) = 0;
-    virtual void eventReceived(QString event, QVariant  message) = 0;
+    virtual void messageReceived(QString socketUuid, QString message) = 0;
+    virtual void messageReceived(QString socketUuid, QVariant message) = 0;
+    virtual void eventReceived(QString socketUuid, QString event) = 0;
+    virtual void eventReceived(QString socketUuid, QString event, QString message) = 0;
+    virtual void eventReceived(QString socketUuid, QString event, QVariant  message) = 0;
 signals:
+    void sendMessage(QString socketUuid, QString message);
     void sendMessage(QString message);
 
 public slots:
-    virtual void ClientConnectedHandler() = 0;
+    virtual void ClientConnectedHandler(QString socketUuid) = 0;
 };
 
 

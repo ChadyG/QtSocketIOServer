@@ -10,23 +10,24 @@ class ExHandler : public SocketHandler
 public:
     ExHandler();
 
-    virtual void messageReceived(QString message);
-    virtual void messageReceived(QVariant  message);
-    virtual void eventReceived(QString event);
-    virtual void eventReceived(QString event, QString message);
-    virtual void eventReceived(QString event, QVariant  message);
+    virtual void messageReceived(QString socketUuid, QString message);
+    virtual void messageReceived(QString socketUuid, QVariant  message);
+    virtual void eventReceived(QString socketUuid, QString event);
+    virtual void eventReceived(QString socketUuid, QString event, QString message);
+    virtual void eventReceived(QString socketUuid, QString event, QVariant message);
 
 public slots:
-    void ClientConnectedHandler();
+    virtual void ClientConnectedHandler(QString socketUuid);
 
 private:
-    void sendDBValue(QString nameSpace, QString doc, QString key, QVariant val);
-    void sendValue(QString service, QString key, QVariant val);
+    QString sendMessageEvent(QString name, QString message);
 
     QMutex _MutexDataUpdate;
     QMap<QString, QVariant> _dataUpdates;
     QString _tcpGetKey;
     QTimer *_timer;
+
+    QList<QVariant> _chatLog;
 };
 
 #endif // HANDLERTEST_H

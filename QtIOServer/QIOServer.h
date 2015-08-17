@@ -1,6 +1,7 @@
 #ifndef QIOSERVER_H
 #define QIOSERVER_H
 
+#include <QSslSocket>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>
@@ -11,6 +12,9 @@
 #include <QMap>
 #include <QQueue>
 
+#ifndef QT_NO_OPENSSL
+#include "qsslserver_p.h"
+#endif
 #include "QWsSocket.h"
 
 enum EIOsocketMessages
@@ -30,16 +34,13 @@ enum EIOsocketMessages
 struct ServerPri;
 class QIOServer : public QObject
 {
-	Q_OBJECT
+    Q_OBJECT
 
 public:
-	// ctor
     QIOServer(QObject * parent = 0);
-	// dtor
     virtual ~QIOServer();
 
-    //bool hasPendingConnections();
-    //virtual QWsSocket * nextPendingConnection();
+    QStringList getHeaders(QString socketUuid);
 
     //QTcpServer functions
     QString errorString();
@@ -57,59 +58,62 @@ public:
 
 
 signals:
-    void newConnection();
-    void socketDisconnected();
-    void newMessage(QString message);
+    void newConnection(QString socketUuid);
+    void socketDisconnected(QString socketUuid);
+    void newMessage(QString socketUuid, QString message);
 
 protected:
-	// protected functions
-    //void addPendingConnection( QWsSocket * socket );
-
     void processSocketHandshake(QTcpSocket *tcpSocket, QString request);
 
 public slots:
-    // public functions
     void start();
     void close();
+    void sendMessage(const QString &socketUuid, const QString &message);
     void sendMessage(const QString &message);
-    void listen(quint16 port = 0, const QHostAddress & address = QHostAddress::Any);
+    void listen(quint16 port = 0, const QHostAddress & address = QHostAddress::Any, bool ssl = false);
 
 
 private slots:
     // incoming connections
-	void newTcpConnection();
-	void closeTcpConnection();
+    void newTcpConnection();
+    void closeTcpConnection();
     void dataReceived();
+
+#ifndef QT_NO_OPENSSL
+    void peerVerifyError(const QSslError& error);
+    void sslErrors(const QList<QSslError>& errors);
+#endif
+
     // connected sockets
+    void error(QAbstractSocket::SocketError socketError);
     void frameReceivedHandler( QString message );
     void socketDisconnectedHandler();
     void sendHeartbeats();
 
 private:
-    // private attributes
     QTcpServer * _tcpServer;
     QQueue<QWsSocket*> pendingConnections;
-	QMap<const QTcpSocket*, QStringList> headerBuffer;
-    QList<QWsSocket*> _clients;
+    QMap<const QTcpSocket*, QStringList> headerBuffer;
+    QMap<QString, QWsSocket*> _clients;
+    QMap<QWsSocket*, QString> _clientUuids;
     bool _connected;
     QTimer* _timer;
-    QThread _backgroundThread;
 
 public:
-	// public static functions
+    // public static functions
     static QByteArray serializeInt( quint32 number, quint8 nbBytes = 4 );
     static QString computeAcceptV0( QString key1, QString key2, QString thirdPart );
     static QString computeAcceptV4( QString key );
     static QString computeSocketIOSession( QString key );
-	static QString generateNonce();
+    static QString generateNonce();
     static QString composeOpeningHandshakeResponseV0( QString accept, QString origin, QString hostAddress, QString hostPort, QString resourceName, QString protocol = "" );
     static QString composeOpeningHandshakeResponseV4( QString accept, QString nonce, QString protocol = "", QString extensions = "" );
     static QString composeOpeningHandshakeResponseV6( QString accept, QString protocol = "", QString extensions = "" );
     static QString composeSocketIOHandshakeResponse( QString accept, QString origin, QString hostAddress, QString hostPort, QString resourceName, QString protocol = "" );
-	static QString composeBadRequestResponse( QList<EWebsocketVersion> versions = QList<EWebsocketVersion>() );
+    static QString composeBadRequestResponse( QList<EWebsocketVersion> versions = QList<EWebsocketVersion>() );
 
-	// public static vars
-	static const QString regExpResourceNameStr;
+    // public static vars
+    static const QString regExpResourceNameStr;
     static const QString regExpHostStr;
     static const QString regExpOriginStr;
 

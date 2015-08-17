@@ -1,5 +1,6 @@
 #include "QIOServer.h"
 
+#include <QUuid>
 #include <QRegExp>
 #include <QStringList>
 #include <QByteArray>
@@ -20,9 +21,8 @@ const QString QIOServer::regExpOrigin2Str( QLatin1String("\r\nOrigin:\\s(.+)\r\n
 const QString QIOServer::regExpProtocolStr( QLatin1String("\r\nSec-WebSocket-Protocol:\\s(.+)\r\n") );
 const QString QIOServer::regExpExtensionsStr( QLatin1String("\r\nSec-WebSocket-Extensions:\\s(.+)\r\n") );
 
-
 QIOServer::QIOServer(QObject * parent)
-	: QObject(parent)
+    : QObject(parent)
     , _tcpServer(0)
     , _timer(0)
     , _connected(false)
@@ -34,11 +34,21 @@ QIOServer::~QIOServer()
     _tcpServer->deleteLater();
 }
 
-void QIOServer::listen(quint16 port, const QHostAddress & address)
+void QIOServer::listen(quint16 port, const QHostAddress & address, bool ssl)
 {
     if (_tcpServer == 0)
     {
-        _tcpServer = new QTcpServer(this);
+#ifndef QT_NO_OPENSSL
+        if (ssl)
+        {
+            _tcpServer = new QSslServer(this);
+            connect( _tcpServer, SIGNAL(peerVerifyError(QSslError)), this, SLOT(peerVerifyError(QSslError)));
+            connect( _tcpServer, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(sslErrors(QList<QSslError>)));
+        }else
+#endif
+        {
+            _tcpServer = new QTcpServer(this);
+        }
         connect( _tcpServer, SIGNAL(newConnection()), this, SLOT(newTcpConnection()) );
         qsrand( QDateTime::currentMSecsSinceEpoch() );
     }
@@ -53,17 +63,19 @@ void QIOServer::start()
         connect(_timer, SIGNAL(timeout()), this, SLOT(sendHeartbeats()));
         _timer->start(15000);
     }
-    //this->moveToThread(&_backgroundThread);
-
-    //_backgroundThread.start();
 }
 
 void QIOServer::close()
 {
     _tcpServer->close();
-   // _backgroundThread.quit();
-   // _backgroundThread.deleteLater();
-   // _backgroundThread.wait();
+}
+
+void QIOServer::sendMessage(const QString &socketUuid, const QString &message)
+{
+    if (_clients.contains(socketUuid))
+    {
+        _clients.value(socketUuid)->write( message );
+    }
 }
 
 void QIOServer::sendMessage(const QString &message)
@@ -71,7 +83,6 @@ void QIOServer::sendMessage(const QString &message)
     QWsSocket * client;
     foreach ( client, _clients )
     {
-        //QMetaObject::invokeMethod(client, "write", Q_ARG(const QString &, message));
         client->write( message );
     }
 }
@@ -79,60 +90,59 @@ void QIOServer::sendMessage(const QString &message)
 void QIOServer::newTcpConnection()
 {
     QTcpSocket * tcpSocket = _tcpServer->nextPendingConnection();
-	connect( tcpSocket, SIGNAL(readyRead()), this, SLOT(dataReceived()) );
-	headerBuffer.insert( tcpSocket, QStringList() );
+    connect( tcpSocket, SIGNAL(readyRead()), this, SLOT(dataReceived()) );
+    connect( tcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(error(QAbstractSocket::SocketError)));
+    headerBuffer.insert( tcpSocket, QStringList() );
 }
 
 void QIOServer::closeTcpConnection()
 {
-	QTcpSocket * tcpSocket = qobject_cast<QTcpSocket*>( sender() );
-	if (tcpSocket == 0)
-		return;
+    QTcpSocket * tcpSocket = qobject_cast<QTcpSocket*>( sender() );
+    if (tcpSocket == 0)
+        return;
 
-	tcpSocket->close();
+    tcpSocket->close();
 }
 
 void QIOServer::dataReceived()
 {
-    //qDebug() << "QIOServer:Data Received";
-	QTcpSocket * tcpSocket = qobject_cast<QTcpSocket*>( sender() );
-	if (tcpSocket == 0)
-		return;
+    QTcpSocket * tcpSocket = qobject_cast<QTcpSocket*>( sender() );
+    if (tcpSocket == 0)
+        return;
 
-	bool allHeadersFetched = false;
+    bool allHeadersFetched = false;
 
-	const QLatin1String emptyLine("\r\n");
+    const QLatin1String emptyLine("\r\n");
 
-	while ( tcpSocket->canReadLine() )
-	{
-		QString line = tcpSocket->readLine();
-        //qDebug() << "QIOServer:Header line: " << line;
-
-		if (line == emptyLine)
-		{
-			allHeadersFetched = true;
-			break;
-		}
-
-		headerBuffer[ tcpSocket ].append(line);
-	}
-
-	if (!allHeadersFetched)
+    while ( tcpSocket->canReadLine() )
     {
-		return;
+        QString line = tcpSocket->readLine();
+
+        if (line == emptyLine)
+        {
+            allHeadersFetched = true;
+            break;
+        }
+
+        headerBuffer[ tcpSocket ].append(line);
     }
 
-	QString request( headerBuffer[ tcpSocket ].join("") );
+    if (!allHeadersFetched)
+    {
+        return;
+    }
 
-	QRegExp regExp;
-	regExp.setMinimal( true );
+    QString request( headerBuffer[ tcpSocket ].join("") );
+
+    QRegExp regExp;
+    regExp.setMinimal( true );
 
     // Resource name
     regExp.setPattern( QIOServer::regExpResourceNameStr );
     regExp.indexIn(request);
     QString resourceName = regExp.cap(1);
 
-	// Extract mandatory datas
+    // Extract mandatory datas
     // Version
     QStringList socketTemp = resourceName.split('/');
     QString commandStr;
@@ -149,16 +159,16 @@ void QIOServer::dataReceived()
     }
     EIOsocketMessages mtype;
     if ( ! commandStr.isEmpty() )
-	{
+    {
         mtype = (EIOsocketMessages)commandStr.toInt();
     }
-	else
-	{
+    else
+    {
         mtype = IO_MUnknown;
     }
 
-    //qDebug() << "QIOServer: " << resourceName;
-    //TODO: we can tell if this is a handshake request or websockets request
+    //_logger->Log(QString("QIOServer: %1").arg(resourceName), LogLevelInfo);
+    // We can tell if this is a handshake request or websockets request
     // fork logic here to continue with handshake or do websocket connection
     if (mtype == IO_MConnect && !sessionID.isEmpty())
     {
@@ -166,42 +176,42 @@ void QIOServer::dataReceived()
         return;
     }
 
-	// Host (address & port)
-	regExp.setPattern( QIOServer::regExpHostStr );
-	regExp.indexIn(request);
-	QString host = regExp.cap(1);
-	QStringList hostTmp = host.split(':');
-	QString hostAddress = hostTmp[0];
-	QString hostPort;
-	if ( hostTmp.size() > 1 )
-		hostPort = hostTmp.last(); // fix for IPv6
+    // Host (address & port)
+    regExp.setPattern( QIOServer::regExpHostStr );
+    regExp.indexIn(request);
+    QString host = regExp.cap(1);
+    QStringList hostTmp = host.split(':');
+    QString hostAddress = hostTmp[0];
+    QString hostPort;
+    if ( hostTmp.size() > 1 )
+        hostPort = hostTmp.last(); // fix for IPv6
 
-	
-	////////////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////////////
 
     // If the mandatory fields are not specified, we abort the connection to the Websocket server
     if ( mtype == IO_MUnknown || resourceName.isEmpty() || hostAddress.isEmpty() )
-	{
-		// Send bad request response
-		QString response = QIOServer::composeBadRequestResponse( QList<EWebsocketVersion>() << WS_V6 << WS_V7 << WS_V8 << WS_V13 );
-		tcpSocket->write( response.toUtf8() );
-		tcpSocket->flush();
-		return;
-	}
-	
-	////////////////////////////////////////////////////////////////////
-	
-	// Extract optional datas
+    {
+        // Send bad request response
+        QString response = QIOServer::composeBadRequestResponse( QList<EWebsocketVersion>() << WS_V6 << WS_V7 << WS_V8 << WS_V13 );
+        tcpSocket->write( response.toUtf8() );
+        tcpSocket->flush();
+        return;
+    }
 
-	// Origin
+    ////////////////////////////////////////////////////////////////////
+
+    // Extract optional datas
+
+    // Origin
     regExp.setPattern( QIOServer::regExpOrigin2Str );
     regExp.indexIn(request);
     QString origin = regExp.cap(1);
-	
-	////////////////////////////////////////////////////////////////////
-	
-	// Compose opening handshake response
-	QString response;
+
+    ////////////////////////////////////////////////////////////////////
+
+    // Compose opening handshake response
+    QString response;
     QString accept;
 
     switch (mtype)
@@ -228,29 +238,37 @@ void QIOServer::dataReceived()
         break;
     }
 
-	
-	// Handshake OK, disconnect readyRead
-    //disconnect( tcpSocket, SIGNAL(readyRead()), this, SLOT(dataReceived()) );
-
-	// Send opening handshake response
+    // Send opening handshake response
     //if ( version == WS_V0 )
         tcpSocket->write( response.toLatin1() );
     //else
     //	tcpSocket->write( response.toUtf8() );
     tcpSocket->flush();
     tcpSocket->close();
-    //qDebug() << "QIOServer: handshake sent";
+    //_logger->Log("QIOServer: handshake sent", LogLevelInfo);
+}
 
-    //TODO: Once handshake is complete, connect websocket server
-    //add pass through for websocket newConnection
-	
-	// ORIGINAL CODE
-	//int socketDescriptor = tcpSocket->socketDescriptor();
-	//incomingConnection( socketDescriptor );
-	
-	// CHANGED CODE FOR LINUX COMPATIBILITY
-    //addPendingConnection( ioSocket );
-    //emit newConnection();
+#ifndef QT_NO_OPENSSL
+//For Debugging
+void QIOServer::peerVerifyError(const QSslError &error)
+{
+    qDebug()<<"QIOServer:peerVerifyError";
+}
+
+void QIOServer::sslErrors(const QList<QSslError> &errors)
+{
+    qDebug()<<"QIOServer:sslErrors";
+    foreach (QSslError er, errors)
+    {
+        qDebug()<<"QIOServer::sslErrors: " << er.errorString();
+    }
+}
+//End debugging
+#endif
+
+void QIOServer::error(QAbstractSocket::SocketError socketError)
+{
+    qDebug()<<"QIOServer:error " << socketError;
 }
 
 void QIOServer::processSocketHandshake(QTcpSocket *tcpSocket, QString request)
@@ -395,18 +413,13 @@ void QIOServer::processSocketHandshake(QTcpSocket *tcpSocket, QString request)
 
     wsSocket->write(QString("1::"));
 
-    // ORIGINAL CODE
-    //int socketDescriptor = tcpSocket->socketDescriptor();
-    //incomingConnection( socketDescriptor );
-
-    // CHANGED CODE FOR LINUX COMPATIBILITY
-
     connect( wsSocket, SIGNAL(frameReceived(QString)), this, SLOT(frameReceivedHandler(QString)) );
     connect( wsSocket, SIGNAL(disconnected()), this, SLOT(socketDisconnectedHandler()) );
 
-    _clients << wsSocket;
-    //addPendingConnection( wsSocket );
-    emit newConnection();
+    QString uuid = QUuid::createUuid().toString();
+    _clients[uuid] = wsSocket;
+    _clientUuids[wsSocket] = uuid;
+    emit newConnection(uuid);
 }
 
 
@@ -416,7 +429,7 @@ void QIOServer::frameReceivedHandler( QString frame )
     if (socket == 0)
         return;
 
-    emit newMessage(frame);
+    emit newMessage(_clientUuids.value(socket), frame);
 }
 
 void QIOServer::socketDisconnectedHandler()
@@ -425,42 +438,25 @@ void QIOServer::socketDisconnectedHandler()
     if (socket == 0)
         return;
 
-    _clients.removeOne(socket);
+    QString uuid = _clientUuids.value(socket);
+    _clients.take(uuid);
+    _clientUuids.take(socket);
 
     socket->deleteLater();
 
-    emit socketDisconnected();
+    emit socketDisconnected(uuid);
 }
 
 void QIOServer::sendHeartbeats()
 {
+    //_logger->Log("", LogLevelInfo);
     //qDebug() << "IOServer:sendHeartbeats ";
     QWsSocket * client;
     foreach ( client, _clients )
     {
-        //QMetaObject::invokeMethod(client, "write", Q_ARG(const QString &, QString("2::")));
         client->write( QString("2::") );
     }
 }
-
-
-//void QIOServer::addPendingConnection( QWsSocket * socket )
-//{
-//	if ( pendingConnections.size() < maxPendingConnections() )
-//		pendingConnections.enqueue( socket );
-//}
-
-//QWsSocket * QIOServer::nextPendingConnection()
-//{
-//	return pendingConnections.dequeue();
-//}
-
-//bool QIOServer::hasPendingConnections()
-//{
-//	if ( pendingConnections.size() > 0 )
-//		return true;
-//	return false;
-//}
 
 
 
@@ -532,8 +528,8 @@ int QIOServer::maxPendingConnections()
 QString QIOServer::computeSocketIOSession(QString key)
 {
     //TODO: generate key differently?
-	key += QLatin1String("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-	QByteArray hash = QCryptographicHash::hash ( key.toUtf8(), QCryptographicHash::Sha1 );
+    key += QLatin1String("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+    QByteArray hash = QCryptographicHash::hash ( key.toUtf8(), QCryptographicHash::Sha1 );
     return hash.toBase64()+ ":60:30:websocket";
 }
 
@@ -581,53 +577,53 @@ QString QIOServer::computeAcceptV4(QString key)
 
 QString QIOServer::generateNonce()
 {
-	qsrand( QDateTime::currentDateTime().toTime_t() );
+    qsrand( QDateTime::currentDateTime().toTime_t() );
 
-	QByteArray nonce;
-	int i = 16;
+    QByteArray nonce;
+    int i = 16;
 
-	while( i-- )
-	{
-		nonce.append( qrand() % 0x100 );
-	}
+    while( i-- )
+    {
+        nonce.append( qrand() % 0x100 );
+    }
 
-	return QString( nonce.toBase64() );
+    return QString( nonce.toBase64() );
 }
 
 QByteArray QIOServer::serializeInt( quint32 number, quint8 nbBytes )
 {
-	QByteArray ba;
-	quint8 currentNbBytes = 0;
-	while (number > 0 && currentNbBytes < nbBytes)
-	{
-		char car = static_cast<char>(number & 0xFF);
-		ba.prepend( car );
-		number = number >> 8;
-		currentNbBytes++;
-	}
-	char car = 0x00;
-	while (currentNbBytes < nbBytes)
-	{
-		ba.prepend( car );
-		currentNbBytes++;
-	}
-	return ba;
+    QByteArray ba;
+    quint8 currentNbBytes = 0;
+    while (number > 0 && currentNbBytes < nbBytes)
+    {
+        char car = static_cast<char>(number & 0xFF);
+        ba.prepend( car );
+        number = number >> 8;
+        currentNbBytes++;
+    }
+    char car = 0x00;
+    while (currentNbBytes < nbBytes)
+    {
+        ba.prepend( car );
+        currentNbBytes++;
+    }
+    return ba;
 }
 
 QString QIOServer::composeSocketIOHandshakeResponse( QString accept, QString origin, QString hostAddress, QString hostPort, QString resourceName, QString protocol )
 {
-	QString response;
-	
+    QString response;
+
     response.append( QLatin1String("HTTP/1.1 200 OK\r\n") );
     response.append( QLatin1String("Access-Control-Allow-Origin: ") + origin + QLatin1String("\r\n") );
     response.append( QLatin1String("Access-Control-Allow-Credentials: true\r\n") );
     response.append( QLatin1String("Content-Type: text/plain\r\n") );
     response.append( QLatin1String("Content-Length: ")  + QString::number(accept.size()) + QLatin1String("\r\n") );
     response.append( QLatin1String("Connection: keep-alive\r\n") );
-	response.append( QLatin1String("\r\n") );
+    response.append( QLatin1String("\r\n") );
     response.append( accept );
 
-	return response;
+    return response;
 }
 
 QString QIOServer::composeOpeningHandshakeResponseV0( QString accept, QString origin, QString hostAddress, QString hostPort, QString resourceName, QString protocol )
@@ -687,19 +683,19 @@ QString QIOServer::composeOpeningHandshakeResponseV6( QString accept, QString pr
 
 QString QIOServer::composeBadRequestResponse( QList<EWebsocketVersion> versions )
 {
-	QString response;
-	
-	response.append( QLatin1String("HTTP/1.1 400 Bad Request\r\n") );
-	if ( ! versions.isEmpty() )
-	{
-		QString versionsStr = QString::number( (int)versions.takeLast() );
-		int i = versions.size();
-		while ( i-- )
-		{
-			versionsStr.append( QLatin1String(", ") + QString::number( (int)versions.takeLast() ) );
-		}
-		response.append( QLatin1String("Sec-WebSocket-Version: ") + versionsStr + QLatin1String("\r\n") );
-	}
+    QString response;
 
-	return response;
+    response.append( QLatin1String("HTTP/1.1 400 Bad Request\r\n") );
+    if ( ! versions.isEmpty() )
+    {
+        QString versionsStr = QString::number( (int)versions.takeLast() );
+        int i = versions.size();
+        while ( i-- )
+        {
+            versionsStr.append( QLatin1String(", ") + QString::number( (int)versions.takeLast() ) );
+        }
+        response.append( QLatin1String("Sec-WebSocket-Version: ") + versionsStr + QLatin1String("\r\n") );
+    }
+
+    return response;
 }

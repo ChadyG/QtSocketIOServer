@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
     SocketIOServer server("SocketIO");
     ExHandler handler;
     server.registerMessage(&handler);
+    server.start();
 
     return a.exec();
 }

@@ -1,7 +1,5 @@
 #include "ExHandler.h"
 
-#include "SocketMessageHelper.h"
-
 ExHandler::ExHandler()
 {
 //    _timer = new QTimer(this);
@@ -10,144 +8,60 @@ ExHandler::ExHandler()
 
 }
 
-void ExHandler::messageReceived(QString message)
+void ExHandler::messageReceived(QString socketUuid, QString message)
 {
     qDebug() << "eventReceived1: " << message;
 
 }
 
-void ExHandler::messageReceived(QVariant  message)
+void ExHandler::messageReceived(QString socketUuid, QVariant  message)
 {
     qDebug() << "eventReceived2: " << message;
 
 }
 
-void ExHandler::eventReceived(QString event)
+void ExHandler::eventReceived(QString socketUuid, QString event)
 {
     qDebug() << "eventReceived3: " << event;
 
 }
 
-void ExHandler::eventReceived(QString event, QString message)
+void ExHandler::eventReceived(QString socketUuid, QString event, QString message)
 {
     qDebug() << "eventReceived4: " << event << " : " << message;
-    //TODO
-    //GetOPCServerdata
-    //GetInterLockdata
-    //GetPressConfigdata
-    //SaveProLEDConfig
-    //"SaveProLEDConfig"  :  QJsonValue(object, QJsonObject({"data": {"configuration": {"commMethod": "serial","pressCommMethod": "usb"},"lampPosition": [{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"},{"position": "lower"}],"lampSerialNumbers": [{"serialNumber": "1231"},{"serialNumber": "1232"},{"serialNumber": "1233"},{"serialNumber": "1234"},{"serialNumber": "1235"},{"serialNumber": "1236"},{"serialNumber": "1237"}],"stationNumbers": [{"stationNumber": "1"},{"stationNumber": "2"},{"stationNumber": "3"},{"stationNumber": "4"},{"stationNumber": "5"},{"stationNumber": "6"},{"stationNumber": "7"}]},"id": "proLEDConfig"}) )
-
-    if (event == "testState")
+    if (event == "sendMessage")
     {
-        qDebug() << "testState" << message;
+        qDebug() << "sendMessage" << message;
 
-//        if (message == "Initialize")
-//            _state = Enumerations::Initialize;
-//        if (message == "Update")
-//            _state = Enumerations::ApplyUpdates;
-//        if (message == "Shutdown")
-//            _state = Enumerations::Shutdown;
-//        if (message == "Run")
-//            _state = Enumerations::Run;
-
-//        _cacheClient->SetValue(DataTags::ProLEDMaster::State, (int)_state, "");
-//        sendMessage(SocketMessageHelper::ValueUpdate("proLEDMaster:state", _state));
     }
 }
 
-void ExHandler::eventReceived(QString event, QVariant message)
+void ExHandler::eventReceived(QString socketUuid, QString event, QVariant message)
 {
     if (event != "isServerConnected")
         qDebug() << "SocketIO::eventReceived: " << event << " : " << message;
-    QStringList parts;
-    QString doc;
-    QString field;
-    QString workspace;
 
-    QVariant value;
-    QVariant vreturn;
-
-    QVariant jvalue;
-
-    if (event == "getValue")
+    if (event == "sendMessage")
     {
-        qDebug() << "getValue" << message;
-    }
-
-    if (event == "setValue")
-    {
-    }
-
-    if (event == "isServerConnected")
-    {
-        value = message.toMap()["value"].toString();
-        //sendMessage(SocketMessageHelper::ValueUpdate("isServerConnected", true));
+        _chatLog.append(message);
+        emit sendMessage(sendMessageEvent(message.toMap()["name"].toString(), message.toMap()["message"].toString()));
     }
 }
 
 
 // SocketIO Client
-void ExHandler::ClientConnectedHandler()
+void ExHandler::ClientConnectedHandler(QString socketUuid)
 {
     // alarm ping
     //sendMessage(SocketMessageHelper::ValueUpdate("isServerConnected", true));
-}
-
-void ExHandler::sendDBValue(QString nameSpace, QString doc, QString key, QVariant val)
-{
-    QString path = doc;
-    if (key != "")
-        path = doc + "." + key;
-
-    if (val.type() == QMetaType::Bool)
+    foreach (QVariant chat, _chatLog)
     {
-        //sendMessage(SocketMessageHelper::ValueUpdate(QString("%1:%2").arg(nameSpace).arg(path), val));
-        return;
-    }
-    if (val.type() == QMetaType::QString)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(nameSpace + ":" + path, val.toString()));
-        return;
-    }
-    if (val.type() == QMetaType::Int)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(nameSpace + ":" + path, QString::number(val.toInt())));
-        return;
-    }
-    if (val.type() == QMetaType::Double)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(nameSpace + ":" + path, QString::number((int)val.toDouble())));
-        return;
-    }
-    if (val.type() == QMetaType::QVariantMap)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(nameSpace + ":" + path, val));
-        return;
+        emit sendMessage(socketUuid, sendMessageEvent(chat.toMap()["name"].toString(), chat.toMap()["message"].toString()));
     }
 }
 
-void ExHandler::sendValue(QString service, QString key, QVariant val)
+
+QString ExHandler::sendMessageEvent(QString name, QString message)
 {
-    // localservice is master for this file
-    if (val.type() == QMetaType::Bool)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(QString("%1:%2").arg(service).arg(key), val));
-        return;
-    }
-    if (val.type() == QMetaType::QString)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(QString("%1:%2").arg(service).arg(key), val.toString()));
-        return;
-    }
-    if (val.type() == QMetaType::Int)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(QString("%1:%2").arg(service).arg(key), QString::number(val.toInt())));
-        return;
-    }
-    if (val.type() == QMetaType::Double)
-    {
-        //sendMessage(SocketMessageHelper::ValueUpdate(QString("%1:%2").arg(service).arg(key), QString::number((int)val.toDouble())));
-        return;
-    }
+    return QString("5:::{\"name\":\"newMessage\",\"args\":{\"name\":\"%1\",\"message\":\"%2\"}}").arg(name).arg(message);
 }

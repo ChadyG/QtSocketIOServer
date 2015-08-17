@@ -1,20 +1,31 @@
 <!DOCTYPE html>
-<!-- saved from url=(0031)/proled -->
-<html manifest="pageCache.manifest"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black">
-        <title>Web App</title>
-        <link rel="stylesheet" type="text/css" href="bootstrap-responsive.css">
-        <link rel="stylesheet" type="text/css" href="bootstrap.css">
-        
-        <script type="text/javascript" src="jquery-2.0.2.min.js"></script>
-        <script type="text/javascript" src="bootstrap.min.js"></script>
-        <script type="text/javascript" src="jquery.session.js"></script>
-        <script type="text/javascript" src="engine.io.js"></script>
-        <script type="text/javascript" src="socket.io.js"></script>
-        <script type="text/javascript">
+<html manifest="pageCache.manifest">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>Web App</title>
+    <link rel="stylesheet" type="text/css" href="bootstrap-responsive.css">
+    <link rel="stylesheet" type="text/css" href="bootstrap.css">
+    <style>
+
+.form-inline .input-label {
+  width: 1% !important;
+}
+
+    </style>
+
+    <script type="text/javascript" src="jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="bootstrap.min.js"></script>
+    <script type="text/javascript" src="engine.io.js"></script>
+    <script type="text/javascript" src="socket.io.js"></script>
+    <script type="text/javascript">
+
+/**
+* Helper function to parse a raw URL string
+*/
 function parseURL(url) {
     var a = document.createElement('a');
     a.href = url;
@@ -24,62 +35,132 @@ function parseURL(url) {
         port: a.port
     };
 }
+
 var myURL = parseURL(document.location.href);
-var socket = io.connect('http://localhost:3000', {
-    'reconnection limit':  1000,
-    'max reconnection attempts': 1000,
-    'force new connection': true
-})
-socket.on('connect', function() { console.log("socketIO connected");reconnect()})
-socket.on('disconnect', function() { console.log("socketIO disconnected");reconnect()})
-socket.on("error", function(payload){ console.log("SocketIO Error");reconnect()});
-socket.on("connect_failed", function(payload){ console.log("SocketIO Connect Failed");reconnect()});
-socket.on("reconnect_failed", function(payload){ console.log("SocketIO Connect Failed");reconnect()});
-function reconnect(){
-    if (!socket.socket.connected){
-        var t = setTimeout( function() {
-            socket.socket.reconnect()
-            console.log("SocketIO reconnect");
-        },1000);
-    }
+var socket;
+//Initialize our SocketIO connection
+function initSocketIO(useSsl) {
+  if (socket != undefined) {
+    socket.disconnect();
+    socket = null;
+  }
+  if (useSsl) {
+    //TODO: make this universal somehow.  My self signed certificate is only for this domain...
+    socket = io.connect('https://CGODSEY-WIN7.systematicgroup.com:3000', {
+      'secure': true,
+      'reconnection limit':  1000,
+      'max reconnection attempts': 1000,
+      'force new connection': true
+    })
+  }
+  else
+  {
+    socket = io.connect('http://localhost:3000', {
+     'reconnection limit':  1000,
+     'max reconnection attempts': 1000,
+     'force new connection': true
+   })
+  }
+
+  socket.on('connect', function() {
+    console.log("socketIO connected");
+    $('#connection-status').removeClass().addClass('alert alert-success').text("Connected");
+  })
+  socket.on('disconnect', function() {
+    console.log("socketIO disconnected");
+    $('#connection-status').removeClass().addClass('alert alert-danger').text("Disconnected");
+  })
+  socket.on("error", function(payload){
+    console.log("SocketIO Error");
+    $('#connection-status').removeClass().addClass('alert alert-danger').text("Error: " + payload.value);
+  });
+  socket.on("connect_failed", function(payload){
+    console.log("SocketIO Connect Failed");
+    $('#connection-status').removeClass().addClass('alert alert-danger').text("Connection failed: " + payload.value);
+  });
+  socket.on("reconnect_failed", function(payload){
+    console.log("SocketIO Connect Failed");
+    $('#connection-status').removeClass().addClass('alert alert-danger').text("Reconnect failed: " + payload.value);
+  });
+
+
+  /**
+  * Listen for our event 'valueUpdate'.
+  * This is transmitted after a successful call to 'getValue' on the server.
+  */
+  socket.on("newMessage", function(payload){
+    $('#chat-log').append(payload.name + ": " + payload.message + "\n");
+  })
 }
-        </script>
-      
-    </head>
-   <body id="body" style="">
-       
-        <div id="jsStuff">
-            <script type="text/javascript">
-            </script>
-        </div>
-        <div id="controlsStuff"></div>
-        <!---- Start Header - Div---->
-        <header>
-        </header>
 
-        <div class="clear"></div>
-        <div class="canvas" style="-moz-user-select: none;-webkit-user-select: none;" onselectstart="return false;">
-            
-            <div class="pageContainer">
-                <div class="span12 hasdropdown">
-                    <!-- <h1 id="h1"> ProLED <span class="proled-right-menu pull-right"> </span> </h1> -->
-                    <div class="proled-menu"></div>
-                </div>
-                <div class="maincon">
-                    <h1 class="inner"></h1>
-                   
-                </div>
-            </div>
-            <div class="right-panel" style="display: none; overflow: auto; height: 350px;">
-                
-            </div>
-            <div class="clear"></div>
+$(document).ready(function() {
+  $('#connection-connect-ssl').on('click', function(event) {
+    initSocketIO(true);
+  });
+  $('#connection-connect').on('click', function(event) {
+    initSocketIO(false);
+  });
+  $('#connection-submit').on('click', function(event) {
+    socket.emit('sendMessage',
+    {
+      name: $('#chat-name').val(),
+      message: $('#chat-message').val()
+    });
+    $('#chat-message').val('');
+    $('#chat-message').focus();
+  });
+  $('#chat-message').keyup(function(e){
+    if(e.keyCode == 13)
+    {
+      socket.emit('sendMessage',
+      {
+        name: $('#chat-name').val(),
+        message: $('#chat-message').val()
+      });
+      $('#chat-message').val('');
+    }
+  });
+});
+      </script>
 
+  </head>
+  <body>
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-xs-12">
+          <h1>Qt SocketIO Example</h1>
         </div>
-    <!--     Start - End _Side Div -->
-    <div class="clear">
+      </div>
+      <div class="row">
+        <div class="col-xs-12">
+          <div id="connection-status" class="alert alert-danger" role="alert">Not Connected</div>
+          <button id="connection-connect-ssl" type="button" class="btn btn-success">Connect SSL</button>
+          <button id="connection-connect" type="button" class="btn btn-primary">Connect</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xs-12">
+          <div class="panel panel-default">
+            <div class="panel-heading">Chat</div>
+            <div class="panel-body">
+              <pre id="chat-log"></pre>
+            </div>
+            <div class="panel-footer form-inline">
+                <div class="input-group col-lg-2 col-xs-3">
+                  <div class="input-group-addon input-label">Name</div>
+                  <input type="text" class="form-control" id="chat-name" placeholder="User1">
+                </div>
+                <div class="input-group col-lg-9 col-xs-8">
+                  <div class="input-group-addon input-label">Message</div>
+                  <input type="text" class="form-control" id="chat-message" placeholder="...">
+                </div>
+              <button type="submit" id="connection-submit" class="btn btn-primary">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    
-
-</body></html>
+  </body>
+</html>
